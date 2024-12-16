@@ -9,9 +9,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/point")
 public class PointController {
-    private final PointService pointService;
-
     private static final Logger log = LoggerFactory.getLogger(PointController.class);
+
+    private final PointService pointService;
 
     public PointController(PointService pointService) {
         this.pointService = pointService;
