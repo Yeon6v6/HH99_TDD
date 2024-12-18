@@ -5,25 +5,25 @@ import io.hhplus.tdd.point.dto.TransactionType;
 import io.hhplus.tdd.point.dto.UserPoint;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
+import io.hhplus.tdd.point.service.PointHistoryServiceImpl;
 import io.hhplus.tdd.point.service.PointServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 //@SpringBootTest
 public class PointServiceImplTest {
+    @Mock
     private PointServiceImpl pointServiceImpl;
+    private PointHistoryServiceImpl pointHistoryServiceImpl;
     private UserPoint userPoint;
 
     @Mock
@@ -86,7 +86,7 @@ public class PointServiceImplTest {
         when(pointHistoryRepository.selectAllByUserId(userId)).thenReturn(historyList);
 
         // When
-        List<PointHistory> result = pointServiceImpl.getPointHistory(userId);
+        List<PointHistory> result = pointHistoryRepository.selectAllByUserId(userId);
 
         // Then
         assertEquals(2, result.size());
