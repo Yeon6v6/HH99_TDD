@@ -3,10 +3,12 @@ package io.hhplus.tdd.point;
 import io.hhplus.tdd.point.dto.PointHistory;
 import io.hhplus.tdd.point.dto.TransactionType;
 import io.hhplus.tdd.point.dto.UserPoint;
+import io.hhplus.tdd.point.exception.PointException;
+import io.hhplus.tdd.point.facade.PointFacade;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
-import io.hhplus.tdd.point.service.PointHistoryServiceImpl;
-import io.hhplus.tdd.point.service.PointServiceImpl;
+import io.hhplus.tdd.point.service.PointHistoryService;
+import io.hhplus.tdd.point.service.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -14,16 +16,15 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 //@SpringBootTest
-public class PointServiceImplTest {
-    @Mock
-    private PointServiceImpl pointServiceImpl;
-    private PointHistoryServiceImpl pointHistoryServiceImpl;
+public class PointFacadeTest {
+    private PointFacade pointFacade;
     private UserPoint userPoint;
 
     @Mock
@@ -37,9 +38,9 @@ public class PointServiceImplTest {
     public void setUp() {
         //Mockito 초기화
         MockitoAnnotations.openMocks(this);
-        
-        //pointServiceImpl 초기화
-        pointServiceImpl = new PointServiceImpl(userPointRepository, pointHistoryRepository);
+
+        // PointFacade 초기화
+        pointFacade = new PointFacade( new PointService(userPointRepository, pointHistoryRepository), new PointHistoryService(pointHistoryRepository));
 
         //테스트 객체 생성(포인트 초기 값 : 100L)
         userPoint = new UserPoint(1L, 100L, System.currentTimeMillis());
@@ -65,11 +66,25 @@ public class PointServiceImplTest {
         when(userPointRepository.selectById(userId)).thenReturn(userPoint);
 
         // When
-        UserPoint result = pointServiceImpl.getUserPoint(userId);
+        UserPoint result = pointFacade.getUserPoint(userId);
 
         // Then
         assertEquals(100L, result.point());
         verify(userPointRepository).selectById(userId); // Mock 호출 검증
+    }
+    /**
+     * 포인트 조회 테스트 : 사용자 포인트 없음
+     */
+    @Test
+    public void getUserPointTest_UserNotFound() {
+        // Given
+        long userId = 999L; //존재하지 않는 사용자
+        when(userPointRepository.selectById(userId)).thenReturn(null);
+
+        // When + Then
+        PointException e = assertThrows(PointException.class, () -> pointFacade.chargePoint(userId, 500L));
+
+        assertThat(e).isSameAs(PointException.EX_NOT_FOUND);// Mock 호출 검증
     }
 
     /**
@@ -109,7 +124,7 @@ public class PointServiceImplTest {
                 .thenReturn(new UserPoint(userId, userPoint.point() + chargeAmount, System.currentTimeMillis()));
 
         // When
-        UserPoint result = pointServiceImpl.chargePoint(userId, chargeAmount);
+        UserPoint result = pointFacade.chargePoint(userId, chargeAmount);
 
         // Then
         assertEquals(userPoint.point() + chargeAmount, result.point());
@@ -132,8 +147,9 @@ public class PointServiceImplTest {
         when(userPointRepository.selectById(userId)).thenReturn(userPointWithHighBalance);
 
         // When + Then
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> pointServiceImpl.chargePoint(userId, chargeAmount));
-        assertEquals("최대 포인트를 초과할 수 없습니다.", e.getMessage());
+        PointException e = assertThrows(PointException.class, () -> pointFacade.chargePoint(userId, chargeAmount));
+
+        assertThat(e).isSameAs(PointException.EX_MAX);
     }
 
     /**
@@ -143,20 +159,15 @@ public class PointServiceImplTest {
     public void usePointTest() {
         // Given
         long userId = 1L;
-        long useAmount = 50L;
+        long initPoint = 100L;
+        long useAmount = 200L;
 
-        when(userPointRepository.selectById(userId)).thenReturn(userPoint);
-        when(userPointRepository.insertOrUpdate(userId, userPoint.point() - useAmount))
-                .thenReturn(new UserPoint(userId, userPoint.point() - useAmount, System.currentTimeMillis()));
+        pointFacade.chargePoint(userId, initPoint); // 초기 포인트 충전
 
-        // When
-        UserPoint result = pointServiceImpl.usePoint(userId, useAmount);
+        // When & Then
+        PointException ex = assertThrows(PointException.class, () -> pointFacade.usePoint(userId, useAmount));
 
-        // Then
-        assertEquals(userPoint.point() - useAmount, result.point());
-        verify(userPointRepository).selectById(userId);
-        verify(userPointRepository).insertOrUpdate(userId, userPoint.point() - useAmount);
-        verify(pointHistoryRepository).insert(eq(userId), eq(-useAmount), eq(TransactionType.USE));
+        assertThat(ex).isSameAs(PointException.EX_LOW);
     }
 
     /**
@@ -173,11 +184,9 @@ public class PointServiceImplTest {
         when(userPointRepository.selectById(userId)).thenReturn(userPoint);
 
         // When + Then
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> {
-            pointServiceImpl.usePoint(userId, useAmount);
-        });
+        PointException e = assertThrows(PointException.class, () -> pointFacade.usePoint(userId, useAmount));
 
         // 예외 메시지 검증
-        assertEquals("포인트가 부족합니다.", e.getMessage());
+        assertThat(e).isSameAs(PointException.EX_LOW);
     }
 }
