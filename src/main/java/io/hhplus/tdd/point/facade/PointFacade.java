@@ -4,6 +4,7 @@ import io.hhplus.tdd.point.dto.PointHistory;
 import io.hhplus.tdd.point.dto.UserPoint;
 import io.hhplus.tdd.point.service.PointHistoryService;
 import io.hhplus.tdd.point.service.PointService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,17 +13,13 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
+@RequiredArgsConstructor
 public class PointFacade {
     private final PointService pointService;
     private final PointHistoryService pointHistoryService;
 
     //사용자 별로 요청을 순차적으로 처리하기 위한 Lock
     private final ConcurrentHashMap<Long, Lock> userLocks = new ConcurrentHashMap<>();
-
-    public PointFacade(PointService pointService, PointHistoryService pointHistoryService) {
-        this.pointService = pointService;
-        this.pointHistoryService = pointHistoryService;
-    }
 
     private Lock getUserLock(long userId) {
         return userLocks.computeIfAbsent(userId, id -> new ReentrantLock());
