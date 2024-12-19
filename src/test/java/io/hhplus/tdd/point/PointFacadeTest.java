@@ -101,7 +101,7 @@ public class PointFacadeTest {
         when(pointHistoryRepository.selectAllByUserId(userId)).thenReturn(historyList);
 
         // When
-        List<PointHistory> result = pointHistoryRepository.selectAllByUserId(userId);
+        List<PointHistory> result = pointFacade.getPointHistory(userId);
 
         // Then
         assertEquals(2, result.size());
